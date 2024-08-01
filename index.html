@@ -92,8 +92,168 @@
             scene.add(directionalLight);
         }
 
-       
+        function createTree(x, z) {
+            const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.2, 3, 8);
+            const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
 
+            const leavesGeometry = new THREE.SphereGeometry(1, 8, 8);
+            const leavesMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22 });
+            const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
+            leaves.position.y = 2;
+
+            const tree = new THREE.Group();
+            tree.add(trunk);
+            tree.add(leaves);
+            tree.position.set(x, 1.5, z);
+            scene.add(tree);
+            trees.push(tree);
+        }
+
+        function createObstaclesAndVines() {
+            for (let i = 0; i < 5; i++) {
+                if (Math.random() > 0.5) {
+                    createObstacle(20 + i * 10);
+                } else {
+                    createVine(20 + i * 10);
+                }
+            }
+        }
+
+        function createObstacle(zPosition) {
+            const obstacleGeometry = new THREE.BoxGeometry(1, 1, 1);
+            const obstacleMaterial = new THREE.MeshPhongMaterial({ color: 0x8B0000 });
+            const obstacle = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
+            obstacle.position.set([-2, 0, 2][Math.floor(Math.random() * 3)], 0.5, -zPosition);
+            scene.add(obstacle);
+            obstacles.push(obstacle);
+        }
+
+        function createVine(zPosition) {
+            const vineGeometry = new THREE.CylinderGeometry(0.05, 0.05, 5, 8);
+            const vineMaterial = new THREE.MeshPhongMaterial({ color: 0x006400 });
+            const vine = new THREE.Mesh(vineGeometry, vineMaterial);
+            vine.position.set([-2, 0, 2][Math.floor(Math.random() * 3)], 2.5, -zPosition);
+            scene.add(vine);
+            vines.push(vine);
+        }
+
+        function onKeyDown(event) {
+            switch(event.keyCode) {
+                case 32: // Spacebar
+                    if (!isJumping && !isSwinging) jump();
+                    break;
+                case 37: // Left arrow
+                    if (playerLane > 0) playerLane--;
+                    break;
+                case 39: // Right arrow
+                    if (playerLane < 2) playerLane++;
+                    break;
+                case 38: // Up arrow
+                    if (!isJumping && !isSwinging) swing();
+                    break;
+            }
+        }
+
+        function jump() {
+            isJumping = true;
+            let jumpHeight = 0;
+            let jumpUp = setInterval(() => {
+                if (jumpHeight < 2) {
+                    player.position.y += 0.2;
+                    jumpHeight += 0.2;
+                } else {
+                    clearInterval(jumpUp);
+                    let fallDown = setInterval(() => {
+                        if (player.position.y > 1) {
+                            player.position.y -= 0.2;
+                        } else {
+                            clearInterval(fallDown);
+                            isJumping = false;
+                        }
+                    }, 20);
+                }
+            }, 20);
+        }
+
+        function swing() {
+            isSwinging = true;
+            let swingAngle = 0;
+            let swingForward = setInterval(() => {
+                if (swingAngle < Math.PI / 2) {
+                    player.position.y = 3 + Math.sin(swingAngle) * 2;
+                    player.position.z = -Math.cos(swingAngle) * 2;
+                    swingAngle += 0.1;
+                } else {
+                    clearInterval(swingForward);
+                    let swingBack = setInterval(() => {
+                        if (swingAngle > 0) {
+                            player.position.y = 3 + Math.sin(swingAngle) * 2;
+                            player.position.z = -Math.cos(swingAngle) * 2;
+                            swingAngle -= 0.1;
+                        } else {
+                            clearInterval(swingBack);
+                            player.position.y = 1;
+                            player.position.z = 0;
+                            isSwinging = false;
+                        }
+                    }, 20);
+                }
+            }, 20);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            player.position.x = [-2, 0, 2][playerLane];
+
+            obstacles.forEach(obstacle => {
+                obstacle.position.z += speed;
+                if (obstacle.position.z > 5) {
+                    scene.remove(obstacle);
+                    obstacles.shift();
+                    createObstacle(45);
+                }
+            });
+
+            vines.forEach(vine => {
+                vine.position.z += speed;
+                if (vine.position.z > 5) {
+                    scene.remove(vine);
+                    vines.shift();
+                    createVine(45);
+                }
+            });
+
+            trees.forEach(tree => {
+                tree.position.z += speed;
+                if (tree.position.z > 15) {
+                    tree.position.z -= 50;
+                }
+            });
+
+            // Check collisions
+            obstacles.forEach(obstacle => {
+                if (Math.abs(obstacle.position.z - player.position.z) < 0.5 &&
+                    Math.abs(obstacle.position.x - player.position.x) < 0.5 &&
+                    Math.abs(obstacle.position.y - player.position.y) < 1) {
+                    console.log("Game Over!");
+                    speed = 0;
+                }
+            });
+
+            // Update score
+            score += speed;
+            document.getElementById('score').innerText = `Score: ${Math.floor(score)}`;
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
 
         init();
     </script>
